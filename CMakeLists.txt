@@ -11,8 +11,12 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 if(BUILD_TESTING)
@@ -30,14 +34,30 @@ ament_export_dependencies(rosidl_default_runtime)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "action/WaypointAction.action"
+  DEPENDENCIES 
+  geometry_msgs
 )
 
-# add_executable(fastbot_action_server fastbot_action_server.cpp)
-# ament_target_dependencies(fastbot_action_server
-# )
+add_executable(fastbot_action_server src/fastbot_action_server.cpp)
+ament_target_dependencies(fastbot_action_server
+  rclcpp
+  rclcpp_action
+  tf2
+  geometry_msgs
+  nav_msgs
+  action_msgs
+  rosidl_default_runtime
+)
+
+if(COMMAND rosidl_get_typesupport_target)
+  rosidl_get_typesupport_target(typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
+  target_link_libraries(fastbot_action_Server "${typesupport_target}")
+else()
+  rosidl_target_interfaces(fastbot_action_server ${PROJECT_NAME} "rosidl_typesupport_cpp")
+endif()
 
 install(TARGETS
-  
+  fastbot_action_server
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
