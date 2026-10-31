@@ -14,16 +14,15 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include "fastbot_waypoints/fastbot_action_server.hpp"
+
 using std::placeholders::_1;
 using namespace std;
+using Waypoint = fastbot_waypoints::action::WaypointAction;
+using GoalHandleWaypoint = rclcpp_action::ServerGoalHandle<Waypoint>;
 
-class FastbotActionServer : public rclcpp::Node {
-public:
-  using Waypoint = fastbot_waypoints::action::WaypointAction;
-  using GoalHandleWaypoint = rclcpp_action::ServerGoalHandle<Waypoint>;
-
-  explicit FastbotActionServer(
-      const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
+  FastbotActionServer::FastbotActionServer(
+      const rclcpp::NodeOptions &options)
       : Node("fastbot_action_server", options) {
     using namespace std::placeholders;
 
@@ -46,21 +45,7 @@ public:
     yaw_precision_ = M_PI / 90;
   }
 
-private:
-  rclcpp_action::Server<Waypoint>::SharedPtr action_server_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
-  rclcpp::CallbackGroup::SharedPtr callback_group_odom_;
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscription_;
-  geometry_msgs::msg::Point position_;
-  float yaw_;
-  geometry_msgs::msg::Point desired_position_;
-  float desired_yaw_;
-
-  float dist_precision_;
-  float yaw_precision_;
-
-  rclcpp_action::GoalResponse
-  handle_goal(const rclcpp_action::GoalUUID &uuid,
+  rclcpp_action::GoalResponse FastbotActionServer::handle_goal(const rclcpp_action::GoalUUID &uuid,
               std::shared_ptr<const Waypoint::Goal> goal) {
     RCLCPP_INFO(this->get_logger(),
                 "Received goal request with position %f, %f", goal->position.x,
@@ -69,14 +54,13 @@ private:
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
 
-  rclcpp_action::CancelResponse
-  handle_cancel(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  rclcpp_action::CancelResponse FastbotActionServer::handle_cancel(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
     (void)goal_handle;
     return rclcpp_action::CancelResponse::ACCEPT;
   }
 
-  void handle_accepted(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  void FastbotActionServer::handle_accepted(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
     using namespace std::placeholders;
     // this needs to return quickly to avoid blocking the executor, so spin up a
     // new thread
@@ -84,7 +68,7 @@ private:
         .detach();
   }
 
-  void execute(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  void FastbotActionServer::execute(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "Executing goal");
     const auto goal = goal_handle->get_goal();
     auto feedback = std::make_shared<Waypoint::Feedback>();
@@ -140,56 +124,12 @@ private:
         twist.angular.z = 0.0;
         cmd_vel_publisher_->publish(twist);
       }
-      //         while err_pos > self._dist_precision and success:
-      //             # update vars
-      //             desired_yaw = math.atan2(self._des_pos.y -
-      //             self._position.y, self._des_pos.x - self._position.x)
-      //             err_yaw = desired_yaw - self._yaw
-      //             err_pos = math.sqrt(pow(self._des_pos.y - self._position.y,
-      //             2) + pow(self._des_pos.x - self._position.x, 2)) #
-      //             rospy.loginfo("Current Yaw: %s" % str(self._yaw)) #
-      //             rospy.loginfo("Desired Yaw: %s" % str(desired_yaw))
-      //             rospy.loginfo("Error Yaw: %s" % str(err_yaw))
-      //             rospy.loginfo("Error Pos: %s" % str(err_pos))
-      //             # rospy.loginfo("Wrong error Yaw: %s" % str(wrong_err_yaw))
-      //             # logic goes here
-      //             if self._as.is_preempt_requested():
-      //                 # cancelled
-      //                 rospy.loginfo("The goal has been cancelled/preempted")
-      //                 self._as.set_preempted()
-      //                 success = False
-      //             elif math.fabs(err_yaw) > self._yaw_precision:
-      //                 # fix yaw
-      //                 rospy.loginfo("fix yaw")
-      //                 self._state = 'fix yaw'
-      //                 twist_msg = Twist()
-      //                 twist_msg.angular.z = 0.65 if err_yaw > 0 else -0.65
-      //                 self._pub_cmd_vel.publish(twist_msg)
-      //             else:
-      //                 # go to point
-      //                 rospy.loginfo("go to point")
-      //                 self._state = 'go to point'
-      //                 twist_msg = Twist()
-      //                 twist_msg.linear.x = 0.6
-      //                 twist_msg.angular.z = 0
-      //                 # twist_msg.angular.z = 0.1 if err_yaw > 0 else -0.1
-      //                 self._pub_cmd_vel.publish(twist_msg)
-
-      //             # send feedback
-      //             self._feedback.position = self._position
-      //             self._feedback.state = self._state
-      //             self._as.publish_feedback(self._feedback)
-
-      //             # loop rate
-      //             self._rate.sleep()
-
+    
       //   // Send feedback on distance travelled so far and likewise publish to
       //   distance topic
       feedback_message = position_;
       goal_handle->publish_feedback(feedback);
       RCLCPP_INFO(this->get_logger(), "Publish feedback");
-      //   publisher_message.data = distance;
-      //   publisher_->publish(publisher_message);
 
       loop_rate.sleep();
     }
@@ -208,7 +148,7 @@ private:
     }
   }
 
-  void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+  void FastbotActionServer::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     position_ = msg->pose.pose.position;
     yaw_ = convertQuaternionToEuler(msg->pose.pose.orientation);
     // RCLCPP_INFO(this->get_logger(),
@@ -216,8 +156,7 @@ private:
     //             position_.y, yaw_);
   }
 
-  float
-  convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat) {
+  float FastbotActionServer::convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat) {
     tf2::Quaternion tf2_quat;
 
     tf2::fromMsg(msg_quat, tf2_quat);
@@ -229,173 +168,3 @@ private:
 
     return yaw;
   }
-}; // class MyActionServer
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-
-  auto action_server = std::make_shared<FastbotActionServer>();
-
-  rclcpp::executors::MultiThreadedExecutor executor;
-  executor.add_node(action_server);
-  executor.spin();
-
-  rclcpp::shutdown();
-  return 0;
-}
-
-// #! /usr/bin/env python
-// import rospy
-// import time
-// import actionlib
-
-// from tortoisebot_waypoints.msg import WaypointActionFeedback,
-// WaypointActionResult, WaypointActionAction from geometry_msgs.msg import
-// Twist from std_msgs.msg import Empty from geometry_msgs.msg import Twist,
-// Point from nav_msgs.msg import Odometry from tf import transformations import
-// math
-
-// class WaypointActionClass(object):
-
-//     # create messages that are used to publish feedback/result
-//     _feedback = WaypointActionFeedback()
-//     _result = WaypointActionResult()
-
-//     # topics
-//     _pub_cmd_vel = None
-//     _sub_odom = None
-
-//     # go to point vars
-//     # robot state variables
-//     _position = Point()
-//     _yaw = 0
-//     # machine state
-//     _state = 'idle'
-//     # goal
-//     _des_pos = Point()
-//     # parameters
-//     _yaw_precision = math.pi / 90 # +/- 2 degree allowed
-//     _dist_precision = 0.05
-
-//     def __init__(self):
-//         # creates the action server
-//         self._as = actionlib.SimpleActionServer("tortoisebot_as",
-//         WaypointActionAction, self.goal_callback, False) self._as.start()
-
-//         # define a loop rate
-//         self._rate = rospy.Rate(25)
-
-//         # topics
-//         self._pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-//         self._sub_odom = rospy.Subscriber('/odom', Odometry, self._clbk_odom)
-//         rospy.loginfo("Action server started")
-
-//     def _clbk_odom(self, msg):
-//         # position
-//         self._position = msg.pose.pose.position
-
-//         # yaw
-//         quaternion = (
-//             msg.pose.pose.orientation.x,
-//             msg.pose.pose.orientation.y,
-//             msg.pose.pose.orientation.z,
-//             msg.pose.pose.orientation.w)
-//         euler = transformations.euler_from_quaternion(quaternion)
-//         self._yaw = euler[2]
-
-//     def goal_callback(self, goal):
-//         rospy.loginfo("goal %s received" % str(goal))
-
-//         # helper variables
-//         success = True
-
-//         # define desired position and errors
-//         self._des_pos = goal.position
-//         # # To make error:
-//         # self._des_pos.x = goal.position.x - 0.1
-//         # self._des_pos.y = goal.position.y - 0.1
-//         desired_yaw = math.atan2(self._des_pos.y - self._position.y,
-//         self._des_pos.x - self._position.x) err_pos =
-//         math.sqrt(pow(self._des_pos.y - self._position.y, 2) +
-//         pow(self._des_pos.x - self._position.x, 2)) err_yaw = desired_yaw -
-//         self._yaw
-
-//         # perform task
-//         # while err_pos > self._dist_precision and math.fabs(err_yaw) >
-//         self._yaw_precision and success: while err_pos > self._dist_precision
-//         and success:
-//             # update vars
-//             desired_yaw = math.atan2(self._des_pos.y - self._position.y,
-//             self._des_pos.x - self._position.x) err_yaw = desired_yaw -
-//             self._yaw err_pos = math.sqrt(pow(self._des_pos.y -
-//             self._position.y, 2) + pow(self._des_pos.x - self._position.x,
-//             2)) # rospy.loginfo("Current Yaw: %s" % str(self._yaw)) #
-//             rospy.loginfo("Desired Yaw: %s" % str(desired_yaw))
-//             rospy.loginfo("Error Yaw: %s" % str(err_yaw))
-//             rospy.loginfo("Error Pos: %s" % str(err_pos))
-//             # rospy.loginfo("Wrong error Yaw: %s" % str(wrong_err_yaw))
-//             # logic goes here
-//             if self._as.is_preempt_requested():
-//                 # cancelled
-//                 rospy.loginfo("The goal has been cancelled/preempted")
-//                 self._as.set_preempted()
-//                 success = False
-//             elif math.fabs(err_yaw) > self._yaw_precision:
-//                 # fix yaw
-//                 rospy.loginfo("fix yaw")
-//                 self._state = 'fix yaw'
-//                 twist_msg = Twist()
-//                 twist_msg.angular.z = 0.65 if err_yaw > 0 else -0.65
-//                 self._pub_cmd_vel.publish(twist_msg)
-//             else:
-//                 # go to point
-//                 rospy.loginfo("go to point")
-//                 self._state = 'go to point'
-//                 twist_msg = Twist()
-//                 twist_msg.linear.x = 0.6
-//                 twist_msg.angular.z = 0
-//                 # twist_msg.angular.z = 0.1 if err_yaw > 0 else -0.1
-//                 self._pub_cmd_vel.publish(twist_msg)
-
-//             # send feedback
-//             self._feedback.position = self._position
-//             self._feedback.state = self._state
-//             self._as.publish_feedback(self._feedback)
-
-//             # loop rate
-//             self._rate.sleep()
-
-//         # stop
-//         twist_msg = Twist()
-//         twist_msg.linear.x = 0
-//         twist_msg.angular.z = 0
-//         self._pub_cmd_vel.publish(twist_msg)
-
-//         # # TROLLING To GIVE ERRORS
-//         # troll_count = 0
-//         # while troll_count < 75:
-//         #     twist_msg = Twist()
-//         #     twist_msg.linear.x = 0.0
-//         #     twist_msg.angular.z = 0.2
-//         #     self._pub_cmd_vel.publish(twist_msg)
-//         #     self._rate.sleep()
-//         #     rospy.loginfo("Trolling")
-//         #     troll_count+=1
-
-//         # # stop
-//         # twist_msg = Twist()
-//         # twist_msg.linear.x = 0
-//         # twist_msg.angular.z = 0
-//         # self._pub_cmd_vel.publish(twist_msg)
-
-//         # # END TROLL
-
-//         # return success
-//         if success:
-//             self._result.success = True
-//             self._as.set_succeeded(self._result)
-
-// if __name__ == '__main__':
-//     rospy.init_node('tortoisebot_as')
-//     WaypointActionClass()
-//     rospy.spin()

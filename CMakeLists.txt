@@ -30,6 +30,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+# Message Generation
 ament_export_dependencies(rosidl_default_runtime)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -38,26 +39,55 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   geometry_msgs
 )
 
-add_executable(fastbot_action_server src/fastbot_action_server.cpp)
-ament_target_dependencies(fastbot_action_server
+# Library
+include_directories(include)
+add_library(fastbot_action_server_lib src/fastbot_action_server.cpp include/fastbot_waypoints/fastbot_action_server.hpp)
+ament_target_dependencies(fastbot_action_server_lib 
   rclcpp
   rclcpp_action
   tf2
   geometry_msgs
   nav_msgs
   action_msgs
-  rosidl_default_runtime
+  rosidl_default_runtime)
+
+ament_export_targets(fastbot_action_server_lib HAS_LIBRARY_TARGET)
+
+install(
+	DIRECTORY include/fastbot_waypoints
+	DESTINATION include
+)
+
+
+# Executable
+add_executable(fastbot_action_server src/main.cpp)
+target_link_libraries(
+	fastbot_action_server fastbot_action_server_lib
 )
 
 if(COMMAND rosidl_get_typesupport_target)
   rosidl_get_typesupport_target(typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
-  target_link_libraries(fastbot_action_Server "${typesupport_target}")
+  target_link_libraries(fastbot_action_server_lib "${typesupport_target}")
 else()
-  rosidl_target_interfaces(fastbot_action_server ${PROJECT_NAME} "rosidl_typesupport_cpp")
+  rosidl_target_interfaces(fastbot_action_server_lib ${PROJECT_NAME} "rosidl_typesupport_cpp")
 endif()
 
-install(TARGETS
-  fastbot_action_server
-  DESTINATION lib/${PROJECT_NAME})
+
+# Install
+install(TARGETS fastbot_action_server_lib
+	DESTINATION lib/fastbot_action_server_lib)
+
+install(TARGETS 
+	fastbot_action_server
+	DESTINATION lib/${PROJECT_NAME}/)
+
+install(
+	TARGETS fastbot_action_server_lib
+	EXPORT fastbot_action_server_lib
+	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
+	RUNTIME DESTINATION bin
+	INCLUDES DESTINATION include
+)
 
 ament_package()
