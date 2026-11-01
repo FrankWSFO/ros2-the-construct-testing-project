@@ -21,150 +21,191 @@ using namespace std;
 using Waypoint = fastbot_waypoints::action::WaypointAction;
 using GoalHandleWaypoint = rclcpp_action::ServerGoalHandle<Waypoint>;
 
-  FastbotActionServer::FastbotActionServer(
-      const rclcpp::NodeOptions &options)
-      : Node("fastbot_action_server", options) {
-    using namespace std::placeholders;
+FastbotActionServer::FastbotActionServer(const rclcpp::NodeOptions &options)
+    : Node("fastbot_action_server", options) {
+  using namespace std::placeholders;
 
-    this->action_server_ = rclcpp_action::create_server<Waypoint>(
-        this, "fastbot_waypoint_as",
-        std::bind(&FastbotActionServer::handle_goal, this, _1, _2),
-        std::bind(&FastbotActionServer::handle_cancel, this, _1),
-        std::bind(&FastbotActionServer::handle_accepted, this, _1));
+  this->action_server_ = rclcpp_action::create_server<Waypoint>(
+      this, "fastbot_waypoint_as",
+      std::bind(&FastbotActionServer::handle_goal, this, _1, _2),
+      std::bind(&FastbotActionServer::handle_cancel, this, _1),
+      std::bind(&FastbotActionServer::handle_accepted, this, _1));
 
-    cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(
-        "/fastbot/cmd_vel", 10);
+  cmd_vel_publisher_ =
+      this->create_publisher<geometry_msgs::msg::Twist>("/fastbot/cmd_vel", 10);
 
-    rclcpp::SubscriptionOptions options_odom;
-    options_odom.callback_group = callback_group_odom_;
-    odom_subscription_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/fastbot/odom", 10,
-        std::bind(&FastbotActionServer::odom_callback, this, _1), options_odom);
+  rclcpp::SubscriptionOptions options_odom;
+  options_odom.callback_group = callback_group_odom_;
+  odom_subscription_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "/fastbot/odom", 10,
+      std::bind(&FastbotActionServer::odom_callback, this, _1), options_odom);
 
-    dist_precision_ = 0.05;
-    yaw_precision_ = M_PI / 90;
-  }
+  dist_precision_ = 0.05;
+  yaw_precision_ = M_PI / 90;
+}
 
-  rclcpp_action::GoalResponse FastbotActionServer::handle_goal(const rclcpp_action::GoalUUID &uuid,
-              std::shared_ptr<const Waypoint::Goal> goal) {
-    RCLCPP_INFO(this->get_logger(),
-                "Received goal request with position %f, %f", goal->position.x,
-                goal->position.y);
-    (void)uuid;
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-  }
+rclcpp_action::GoalResponse
+FastbotActionServer::handle_goal(const rclcpp_action::GoalUUID &uuid,
+                                 std::shared_ptr<const Waypoint::Goal> goal) {
+  RCLCPP_INFO(this->get_logger(), "Received goal request with position %f, %f",
+              goal->position.x, goal->position.y);
+  (void)uuid;
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
 
-  rclcpp_action::CancelResponse FastbotActionServer::handle_cancel(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
-    RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
-    (void)goal_handle;
-    return rclcpp_action::CancelResponse::ACCEPT;
-  }
+rclcpp_action::CancelResponse FastbotActionServer::handle_cancel(
+    const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
+  (void)goal_handle;
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
 
-  void FastbotActionServer::handle_accepted(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
-    using namespace std::placeholders;
-    // this needs to return quickly to avoid blocking the executor, so spin up a
-    // new thread
-    std::thread{std::bind(&FastbotActionServer::execute, this, _1), goal_handle}
-        .detach();
-  }
+void FastbotActionServer::handle_accepted(
+    const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  using namespace std::placeholders;
+  // this needs to return quickly to avoid blocking the executor, so spin up a
+  // new thread
+  std::thread{std::bind(&FastbotActionServer::execute, this, _1), goal_handle}
+      .detach();
+}
 
-  void FastbotActionServer::execute(const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
-    RCLCPP_INFO(this->get_logger(), "Executing goal");
-    const auto goal = goal_handle->get_goal();
-    auto feedback = std::make_shared<Waypoint::Feedback>();
-    auto &feedback_message = feedback->position;
-    // std_msgs::msg::Float64 publisher_message;
-    // distance = 0;
-    // feedback_message = distance;
-    // publisher_message.data = distance;
-    auto result = std::make_shared<Waypoint::Result>();
-    rclcpp::Rate loop_rate(5);
-    bool success = true;
+void FastbotActionServer::execute(
+    const std::shared_ptr<GoalHandleWaypoint> goal_handle) {
+  RCLCPP_INFO(this->get_logger(), "Executing goal");
+  const auto goal = goal_handle->get_goal();
+  auto feedback = std::make_shared<Waypoint::Feedback>();
+  auto &feedback_message = feedback->position;
+  // std_msgs::msg::Float64 publisher_message;
+  // distance = 0;
+  // feedback_message = distance;
+  // publisher_message.data = distance;
+  auto result = std::make_shared<Waypoint::Result>();
+  rclcpp::Rate loop_rate(5);
+  bool success = true;
 
-    desired_position_ = goal->position;
-    desired_yaw_ = std::atan2(std::sin(desired_yaw_ - yaw_),
-                            std::cos(desired_yaw_ - yaw_));
-    float err_position_ = hypot(desired_position_.y - position_.y,
-                                desired_position_.x - position_.x);
-    float err_yaw_ = desired_yaw_ - yaw_;
+  desired_position_ = goal->position;
+  desired_yaw_ = std::atan2(std::sin(desired_position_.y - position_.y),
+                            std::cos(desired_position_.x - position_.x));
+  float err_position_ = hypot(desired_position_.y - position_.y,
+                              desired_position_.x - position_.x);
+  float err_yaw_ =
+      std::atan2(std::sin(desired_yaw_ - yaw_), std::cos(desired_yaw_ - yaw_));
 
-    while (err_position_ > dist_precision_ && rclcpp::ok()) {
+  while (err_position_ > dist_precision_ && rclcpp::ok()) {
 
-      // Check if there is a cancel request
-      if (goal_handle->is_canceling()) {
-        result->success = false;
-        goal_handle->canceled(result);
-        RCLCPP_INFO(this->get_logger(), "Goal canceled");
-        success = false;
-        return;
-      }
-
-      // Update variables
-      desired_yaw_ = atan2(desired_position_.y - position_.y,
-                           desired_position_.x - position_.x);
-      err_position_ = hypot(desired_position_.y - position_.y,
-                            desired_position_.x - position_.x);
-      err_yaw_ = std::atan2(std::sin(desired_yaw_ - yaw_),
-                            std::cos(desired_yaw_ - yaw_));
-      RCLCPP_INFO(this->get_logger(), "Error yaw: %f", err_yaw_);
-      RCLCPP_INFO(this->get_logger(), "Error position: %f", err_position_);
-
-      if (abs(err_yaw_) > yaw_precision_) {
-        RCLCPP_INFO(this->get_logger(), "Fix yaw");
-        feedback->state = "Fix yaw";
-        geometry_msgs::msg::Twist twist;
-        twist.angular.z = err_yaw_ > 0 ? 0.8 : -0.8;
-        twist.linear.x = 0;
-        cmd_vel_publisher_->publish(twist);
-      } else {
-        RCLCPP_INFO(this->get_logger(), "Go to point");
-        feedback->state = "Go to point";
-        geometry_msgs::msg::Twist twist;
-        twist.linear.x = 0.1;
-        twist.angular.z = 0.0;
-        cmd_vel_publisher_->publish(twist);
-      }
-    
-      //   // Send feedback on distance travelled so far and likewise publish to
-      //   distance topic
-      feedback_message = position_;
-      goal_handle->publish_feedback(feedback);
-      RCLCPP_INFO(this->get_logger(), "Publish feedback");
-
-      loop_rate.sleep();
+    // Check if there is a cancel request
+    if (goal_handle->is_canceling()) {
+      result->success = false;
+      goal_handle->canceled(result);
+      RCLCPP_INFO(this->get_logger(), "Goal canceled");
+      success = false;
+      return;
     }
 
-    //  Stop
-    geometry_msgs::msg::Twist twist;
-    twist.linear.x = 0.0;
-    twist.angular.z = 0.0;
-    cmd_vel_publisher_->publish(twist);
+    // Update variables
+    desired_yaw_ = atan2(desired_position_.y - position_.y,
+                         desired_position_.x - position_.x);
+    err_position_ = hypot(desired_position_.y - position_.y,
+                          desired_position_.x - position_.x);
+    err_yaw_ = std::atan2(std::sin(desired_yaw_ - yaw_),
+                          std::cos(desired_yaw_ - yaw_));
+    RCLCPP_INFO(this->get_logger(), "Desired position: %f, %f",
+                desired_position_.x, desired_position_.y);
+    RCLCPP_INFO(this->get_logger(), "Current position: %f, %f", position_.x,
+                position_.y);
+    RCLCPP_INFO(this->get_logger(), "Current yaw: %f", yaw_);
+    RCLCPP_INFO(this->get_logger(), "Desired yaw: %f", desired_yaw_);
+    RCLCPP_INFO(this->get_logger(), "Error yaw: %f", err_yaw_);
+    RCLCPP_INFO(this->get_logger(), "Error position: %f", err_position_);
 
-    // Check if goal is done
-    if (rclcpp::ok()) {
-      result->success = true;
-      goal_handle->succeed(result);
-      RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+    if (abs(err_yaw_) > yaw_precision_) {
+      RCLCPP_INFO(this->get_logger(), "Fix yaw");
+      feedback->state = "Fix yaw";
+      geometry_msgs::msg::Twist twist;
+      twist.angular.z = err_yaw_ > 0 ? 1.2 : -1.2;
+      twist.linear.x = 0;
+      cmd_vel_publisher_->publish(twist);
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Go to point");
+      feedback->state = "Go to point";
+      geometry_msgs::msg::Twist twist;
+      twist.linear.x = 0.15;
+      twist.angular.z = 0.0;
+      cmd_vel_publisher_->publish(twist);
     }
+
+    //   // Send feedback on distance travelled so far and likewise publish to
+    //   distance topic
+    feedback_message = position_;
+    goal_handle->publish_feedback(feedback);
+    RCLCPP_INFO(this->get_logger(), "Publish feedback");
+
+    loop_rate.sleep();
   }
 
-  void FastbotActionServer::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-    position_ = msg->pose.pose.position;
-    yaw_ = convertQuaternionToEuler(msg->pose.pose.orientation);
-    // RCLCPP_INFO(this->get_logger(),
-    //             "X: %.2f, Y: %.2f, Yaw: %.2f (rad)", position_.x,
-    //             position_.y, yaw_);
+  //  Stop
+  geometry_msgs::msg::Twist twist;
+  twist.linear.x = 0.0;
+  twist.angular.z = 0.0;
+  cmd_vel_publisher_->publish(twist);
+
+  // Check if goal is done
+  if (rclcpp::ok()) {
+    result->success = true;
+    goal_handle->succeed(result);
+    RCLCPP_INFO(this->get_logger(), "Goal succeeded");
   }
+}
 
-  float FastbotActionServer::convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat) {
-    tf2::Quaternion tf2_quat;
+void FastbotActionServer::odom_callback(
+    const nav_msgs::msg::Odometry::SharedPtr msg) {
+  position_ = msg->pose.pose.position;
+  yaw_ = convertQuaternionToEuler(msg->pose.pose.orientation);
+  // RCLCPP_INFO(this->get_logger(),
+  //             "X: %.2f, Y: %.2f, Yaw: %.2f (rad)", position_.x,
+  //             position_.y, yaw_);
+}
 
-    tf2::fromMsg(msg_quat, tf2_quat);
+float FastbotActionServer::convertQuaternionToEuler(
+    const geometry_msgs::msg::Quaternion &msg_quat) {
+  tf2::Quaternion tf2_quat;
 
-    tf2::Matrix3x3 m(tf2_quat);
+  tf2::fromMsg(msg_quat, tf2_quat);
 
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
+  tf2::Matrix3x3 m(tf2_quat);
 
-    return yaw;
-  }
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+
+//   For some reason the raw yaw is producing yaws pi/2 more than they should be, so correct here
+  return atan2(sin(yaw-M_PI_2), cos(yaw-M_PI_2));
+}
+
+
+
+
+// [INFO] [1793492280.737253876] [fastbot_action_server]: Desired position: 1.000000, 1.500000
+// [INFO] [1793492280.737348572] [fastbot_action_server]: Current position: 1.430614, 1.285168
+// [INFO] [1793492280.737373424] [fastbot_action_server]: Current yaw: 2.894149
+// [INFO] [1793492280.737393126] [fastbot_action_server]: Desired yaw: 2.678827
+// [INFO] [1793492280.737411213] [fastbot_action_server]: Error yaw: -0.215322
+// [INFO] [1793492280.737429668] [fastbot_action_server]: Error position: 0.481229
+// [INFO] [1793492280.737448504] [fastbot_action_server]: Fix yaw,
+
+// [INFO] [1793492445.536460789] [fastbot_action_server]: Desired position: 1.000000, 1.500000
+// [INFO] [1793492445.537480324] [fastbot_action_server]: Current position: 0.902756, 1.919505
+// [INFO] [1793492445.537509542] [fastbot_action_server]: Current yaw: -1.192372
+// [INFO] [1793492445.537531912] [fastbot_action_server]: Desired yaw: -1.343014
+// [INFO] [1793492445.537551193] [fastbot_action_server]: Error yaw: -0.150642
+// [INFO] [1793492445.537570621] [fastbot_action_server]: Error position: 0.430628
+// [INFO] [1793492445.537591040] [fastbot_action_server]: Fix yaw
+// [INFO] [1793492445.537697871] [fastbot_action_server]: Publish feedback
+
+// [INFO] [1793492805.119694029] [fastbot_action_server]: Desired position: 1.000000, 1.500000
+// [INFO] [1793492805.120175977] [fastbot_action_server]: Current position: 1.056989, 1.267600
+// [INFO] [1793492805.120202752] [fastbot_action_server]: Current yaw: 1.927317
+// [INFO] [1793492805.120224662] [fastbot_action_server]: Desired yaw: 1.811270
+// [INFO] [1793492805.120245549] [fastbot_action_server]: Error yaw: -0.116047
+// [INFO] [1793492805.120266925] [fastbot_action_server]: Error position: 0.239285
+// [INFO] [1793492805.120287254] [fastbot_action_server]: Fix yaw
+// [INFO] [1793492805.120391050] [fastbot_action_server]: Publish feedback
