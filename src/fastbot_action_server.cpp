@@ -16,10 +16,7 @@
 
 #include "fastbot_waypoints/fastbot_action_server.hpp"
 
-using std::placeholders::_1;
-using namespace std;
-using Waypoint = fastbot_waypoints::action::WaypointAction;
-using GoalHandleWaypoint = rclcpp_action::ServerGoalHandle<Waypoint>;
+
 
 FastbotActionServer::FastbotActionServer(const rclcpp::NodeOptions &options)
     : Node("fastbot_action_server", options) {
@@ -180,32 +177,3 @@ float FastbotActionServer::convertQuaternionToEuler(
 //   For some reason the raw yaw is producing yaws pi/2 more than they should be, so correct here
   return atan2(sin(yaw-M_PI_2), cos(yaw-M_PI_2));
 }
-
-
-
-
-// [INFO] [1793492280.737253876] [fastbot_action_server]: Desired position: 1.000000, 1.500000
-// [INFO] [1793492280.737348572] [fastbot_action_server]: Current position: 1.430614, 1.285168
-// [INFO] [1793492280.737373424] [fastbot_action_server]: Current yaw: 2.894149
-// [INFO] [1793492280.737393126] [fastbot_action_server]: Desired yaw: 2.678827
-// [INFO] [1793492280.737411213] [fastbot_action_server]: Error yaw: -0.215322
-// [INFO] [1793492280.737429668] [fastbot_action_server]: Error position: 0.481229
-// [INFO] [1793492280.737448504] [fastbot_action_server]: Fix yaw,
-
-// [INFO] [1793492445.536460789] [fastbot_action_server]: Desired position: 1.000000, 1.500000
-// [INFO] [1793492445.537480324] [fastbot_action_server]: Current position: 0.902756, 1.919505
-// [INFO] [1793492445.537509542] [fastbot_action_server]: Current yaw: -1.192372
-// [INFO] [1793492445.537531912] [fastbot_action_server]: Desired yaw: -1.343014
-// [INFO] [1793492445.537551193] [fastbot_action_server]: Error yaw: -0.150642
-// [INFO] [1793492445.537570621] [fastbot_action_server]: Error position: 0.430628
-// [INFO] [1793492445.537591040] [fastbot_action_server]: Fix yaw
-// [INFO] [1793492445.537697871] [fastbot_action_server]: Publish feedback
-
-// [INFO] [1793492805.119694029] [fastbot_action_server]: Desired position: 1.000000, 1.500000
-// [INFO] [1793492805.120175977] [fastbot_action_server]: Current position: 1.056989, 1.267600
-// [INFO] [1793492805.120202752] [fastbot_action_server]: Current yaw: 1.927317
-// [INFO] [1793492805.120224662] [fastbot_action_server]: Desired yaw: 1.811270
-// [INFO] [1793492805.120245549] [fastbot_action_server]: Error yaw: -0.116047
-// [INFO] [1793492805.120266925] [fastbot_action_server]: Error position: 0.239285
-// [INFO] [1793492805.120287254] [fastbot_action_server]: Fix yaw
-// [INFO] [1793492805.120391050] [fastbot_action_server]: Publish feedback

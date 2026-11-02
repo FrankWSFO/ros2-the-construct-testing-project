@@ -22,6 +22,8 @@ public:
   explicit FastbotActionServer(
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
 
+  float convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat);
+
 private:
   rclcpp_action::Server<Waypoint>::SharedPtr action_server_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
@@ -45,6 +47,4 @@ private:
   void execute(const std::shared_ptr<GoalHandleWaypoint> goal_handle);
 
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-
-  float convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat);
 }; // class MyActionServer
