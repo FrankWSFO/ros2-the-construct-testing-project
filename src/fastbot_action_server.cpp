@@ -78,7 +78,17 @@ void FastbotActionServer::execute(
   // publisher_message.data = distance;
   auto result = std::make_shared<Waypoint::Result>();
   rclcpp::Rate loop_rate(5);
-  bool success = true;
+  bool success;
+  success = true;
+
+// To uncomment to make test fail:
+//     // Check if goal is done
+//   if (rclcpp::ok()) {
+//     result->success = true;
+//     goal_handle->succeed(result);
+//     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+//     return;
+//   }
 
   desired_position_ = goal->position;
   desired_yaw_ = std::atan2(std::sin(desired_position_.y - position_.y),
