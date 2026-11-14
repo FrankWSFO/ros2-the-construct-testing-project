@@ -12,11 +12,9 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-// #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "fastbot_waypoints/fastbot_action_server.hpp"
-
-
 
 FastbotActionServer::FastbotActionServer(const rclcpp::NodeOptions &options)
     : Node("fastbot_action_server", options) {
@@ -81,14 +79,14 @@ void FastbotActionServer::execute(
   bool success;
   success = true;
 
-// To uncomment to make test fail:
-//     // Check if goal is done
-//   if (rclcpp::ok()) {
-//     result->success = true;
-//     goal_handle->succeed(result);
-//     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
-//     return;
-//   }
+  // To uncomment to make test fail:
+  //     // Check if goal is done
+  //   if (rclcpp::ok()) {
+  //     result->success = true;
+  //     goal_handle->succeed(result);
+  //     RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+  //     return;
+  //   }
 
   desired_position_ = goal->position;
   desired_yaw_ = std::atan2(std::sin(desired_position_.y - position_.y),
@@ -184,6 +182,7 @@ float FastbotActionServer::convertQuaternionToEuler(
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
 
-//   For some reason the raw yaw is producing yaws pi/2 more than they should be, so correct here
-  return atan2(sin(yaw-M_PI_2), cos(yaw-M_PI_2));
+  //   For some reason the raw yaw is producing yaws pi/2 more than they should
+  //   be, so correct here
+  return atan2(sin(yaw - M_PI_2), cos(yaw - M_PI_2));
 }

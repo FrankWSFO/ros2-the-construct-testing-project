@@ -12,7 +12,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-// #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 class FastbotActionServer : public rclcpp::Node {
 public:
@@ -22,7 +22,8 @@ public:
   explicit FastbotActionServer(
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
 
-  float convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat);
+  float
+  convertQuaternionToEuler(const geometry_msgs::msg::Quaternion &msg_quat);
 
 private:
   rclcpp_action::Server<Waypoint>::SharedPtr action_server_;
@@ -37,10 +38,12 @@ private:
   float dist_precision_;
   float yaw_precision_;
 
-  rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID &uuid,
+  rclcpp_action::GoalResponse
+  handle_goal(const rclcpp_action::GoalUUID &uuid,
               std::shared_ptr<const Waypoint::Goal> goal);
 
-  rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<GoalHandleWaypoint> goal_handle);
+  rclcpp_action::CancelResponse
+  handle_cancel(const std::shared_ptr<GoalHandleWaypoint> goal_handle);
 
   void handle_accepted(const std::shared_ptr<GoalHandleWaypoint> goal_handle);
 

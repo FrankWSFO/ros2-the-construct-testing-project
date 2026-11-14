@@ -17,6 +17,7 @@ find_package(action_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Message Generation
@@ -38,6 +39,7 @@ ament_target_dependencies(fastbot_action_server_lib
   geometry_msgs
   nav_msgs
   action_msgs
+  tf2_geometry_msgs
   rosidl_default_runtime)
 
 ament_export_targets(fastbot_action_server_lib HAS_LIBRARY_TARGET)
