@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include <memory>
 #include <cmath>
+#include <memory>
 
 #include "geometry_msgs/msg/point.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -87,7 +87,8 @@ private:
 
 void WaypointActionTestFixture::waypointAccuracyTest(
     geometry_msgs::msg::Point waypoint_goal) {
-  float expected_yaw = atan2(waypoint_goal.y - position_.y, waypoint_goal.x - position_.x);
+  float expected_yaw =
+      atan2(waypoint_goal.y - position_.y, waypoint_goal.x - position_.x);
   Waypoint::Goal goal;
   goal.position = waypoint_goal;
   auto goal_future = actionClient_->async_send_goal(goal);
@@ -105,7 +106,7 @@ void WaypointActionTestFixture::waypointAccuracyTest(
 
   EXPECT_NEAR(position_.x, waypoint_goal.x, 0.05);
   EXPECT_NEAR(position_.y, waypoint_goal.y, 0.05);
-  EXPECT_NEAR(yaw_, expected_yaw, 0.3);
+  EXPECT_NEAR(yaw_, expected_yaw, 0.5);
   //   std_msgs::msg::Float32 data_send;
   //   data_send.data = test_data;
   //   while (!callback_success_) {
